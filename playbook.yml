@@ -1,0 +1,78 @@
+---
+- hosts: all
+  become: true
+  vars:
+    version: 2.6
+  tasks:
+  - name: ius
+    command: rpm -ivh https://centos6.iuscommunity.org/ius-release.rpm
+    ignore_errors: true
+
+  - name: install repo
+    yum:
+      name:
+      - https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+      - https://forensics.cert.org/cert-forensics-tools-release-el6.rpm
+      state: latest
+      update_cache: yes
+      validate_certs: False
+
+  - name: upgrade all packages
+    yum:
+      name:
+      - python27
+      - python27-devel
+      - python27-pip
+      - python27-setuptools
+      - python27-virtualenv
+      - gettext
+      - cmake3
+      - ncurses-devel
+      - libcurl-devel
+      - zlib-devel
+      - libgcrypt
+      - libgcrypt-devel
+      - perl-ExtUtils-Embed
+      - gnutls-devel
+      - lua-devel
+      - tcl-devel
+      - v8-devel
+      - libselinux-python
+      - "@Development Tools"
+      - python-urllib3
+      - pyOpenSSL
+      - python2-ndg_httpsclient
+      - python-pyasn1
+      state: latest
+      update_cache: yes
+      enablerepo: ius
+
+  - name: maak dirs
+    become: false
+    file:
+      state: directory
+      name: "/vagrant/weechat-{{ version }}/build"
+
+  - name: Extract weechat
+    become: false
+    unarchive:
+      src: "http://weechat.org/files/src/weechat-{{ version }}.tar.gz"
+      dest: /vagrant
+      remote_src: yes
+
+  - name: Compile
+    shell: |
+      cd /vagrant/weechat-{{ version }}/build
+      cmake3 .. -DCMAKE_INSTALL_PREFIX=/opt/weechat -DCA_FILE=/etc/ssl/certs/ca-bundle.crt -DENABLE_RUBY=false
+      make
+      sudo make install
+
+  - name: Make copy
+    archive:
+      path: /opt/weechat
+      dest: /vagrant/weechat-compiled.tar.gz
+
+  - name: remove dirs
+    file:
+      state: absent
+      name: "/vagrant/weechat-{{ version }}"
